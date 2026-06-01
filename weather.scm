@@ -7,7 +7,7 @@
 
 (import openssl http-client medea json-utils intarweb uri-common)
 (import http-client medea json-utils intarweb uri-common)
-(import args)
+(import (args))
 
 (define (f-to-c temp)
   (* (- temp 32.0) (/ 5.0 9.0)))
@@ -55,27 +55,29 @@
     (json-ref data "properties" "periods" 0 "temperature")))
 
 ;; TODO cache city point coords
+
 (define (main)
   (define opts
     (list (args:make-option (c city) #:required "City name")
           (args:make-option (t type) #:optional "F or C")))
-
   (let* ((args-alist (args:parse (command-line-arguments) opts))
-         (city (alist-ref 'city args-alist))
-         (type (or (alist-ref 'type args-alist) "F")))
-
+         (city       (alist-ref 'city args-alist))
+         (type-val   (let ((raw (or (alist-ref 'type args-alist) "F")))
+                       (if (symbol? raw)
+                           (symbol->string raw)
+                           raw))))
     (if (not city)
         (begin
           (print "Usage: ./weather --city \"City,State\"")
           (exit 1))
-        (let* ((coords (get-city-coords city))
-               (lat (list-ref coords 0))
-               (lon (list-ref coords 1))
+        (let* ((coords       (get-city-coords city))
+               (lat          (list-ref coords 0))
+               (lon          (list-ref coords 1))
                (forecast-url (get-grid-url lat lon))
-               (temp (get-weather forecast-url)))
-
-          (if (string-ci=? type "C")
-              (print (round (f-to-c (exact->inexact temp))) "°C")
-              (print temp "°F"))))))
+               (temp         (get-weather forecast-url)))
+          (begin
+            (if (string-ci=? type-val "C")
+                (print (round (f-to-c (exact->inexact temp))) "°C")
+                (print temp "°F")))))))
 
 (main)
