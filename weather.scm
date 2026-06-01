@@ -24,24 +24,22 @@
          (url (sprintf "https://nominatim.openstreetmap.org/search?q=~A&format=json&limit=1" encoded))
          (response (with-input-from-request (make-nws-request url) #f read-string)))
     
-    (if (not response)
-        (begin (print "Error: No response") (exit 1))
-        
-        (let ((data (with-input-from-string response read-json)))
-          (let ((results (if (vector? data) (vector->list data) data)))
+    (unless response 
+      (print "Error: No response") (exit 1))
+
+    (let* ((data (with-input-from-string response read-json))
+           (results (if (vector? data) (vector->list data) data)))
+      
+      (if (or (not (list? results)) (null? results))
+          (begin (print "Error: No results") (exit 1))
+          
+          (let* ((result (car results))
+                 (lat (or (alist-ref "lat" result equal?) (alist-ref 'lat result eq?)))
+                 (lon (or (alist-ref "lon" result equal?) (alist-ref 'lon result eq?))))
             
-            (if (and (list? results) (not (null? results)))
-                (let ((result (car results)))
-                  (let ((lat (or (alist-ref "lat" result equal?)
-                                 (alist-ref 'lat result eq?)))
-                        (lon (or (alist-ref "lon" result equal?)
-                                 (alist-ref 'lon result eq?))))
-                    (if (and lat lon)
-                        (list lat lon)
-                        (exit 1))))
-                (begin
-                  (print "Error: No results")
-                  (exit 1))))))))
+            (if (and lat lon)
+                (list lat lon)
+                (exit 1)))))))
 
 (define (get-grid-url lat lon)
   (let* ((url (sprintf "https://api.weather.gov/points/~A,~A" lat lon))
